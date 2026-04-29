@@ -26,7 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {
         imgFiles: [],
         pdfFiles: [],
-        pdf2JpgFiles: []
+        pdf2JpgFiles: [],
+        editPdfFile: null,
+        fabricCanvas: null,
+        originalPdfBytes: null
     };
 
     // ----------------------------------------------------
@@ -385,6 +388,171 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             btnConvertPdf2Jpg.innerHTML = '<i class="fa-solid fa-image"></i> Convertir a JPG';
             btnConvertPdf2Jpg.disabled = state.pdf2JpgFiles.length < 1;
+        }
+    });
+    
+    // ----------------------------------------------------
+    // Acción: Editor de PDF Interactivo
+    // ----------------------------------------------------
+    const fileInputEdit = document.getElementById('file-edit');
+    const dropzoneEdit = document.getElementById('dropzone-edit');
+    const toolbarEdit = document.getElementById('pdf-toolbar');
+    const wrapperEdit = document.getElementById('canvas-wrapper');
+    const btnSaveEdit = document.getElementById('btn-save-edit');
+
+    // Inicializar Uploader para Editor
+    setupFileUploader(dropzoneEdit, fileInputEdit, 'editPdfFile', null, { disabled: false }, ['application/pdf'], 1);
+
+    // Sobrescribir el render para disparar la carga del PDF
+    const originalRender = setupFileUploader(dropzoneEdit, fileInputEdit, 'editPdfFile', { innerHTML:'' }, { disabled: false }, ['application/pdf'], 1);
+    
+    fileInputEdit.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            loadPdfForEditing(file);
+        }
+    });
+
+    async function loadPdfForEditing(file) {
+        try {
+            showToast('Cargando documento...');
+            state.originalPdfBytes = await file.arrayBuffer();
+            
+            // Ocultar zona de carga, mostrar editor
+            dropzoneEdit.classList.add('hidden');
+            toolbarEdit.classList.remove('hidden');
+            wrapperEdit.classList.remove('hidden');
+
+            const loadingTask = pdfjsLib.getDocument({ data: state.originalPdfBytes });
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1); // Solo página 1 por ahora
+            
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.getElementById('pdf-canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+            // Inicializar Fabric.js sobre el canvas del PDF
+            if (state.fabricCanvas) state.fabricCanvas.dispose();
+            
+            state.fabricCanvas = new fabric.Canvas('pdf-canvas', {
+                isDrawingMode: false
+            });
+
+            // Usar el canvas del PDF como fondo de Fabric
+            const bgData = canvas.toDataURL('image/png');
+            fabric.Image.fromURL(bgData, (img) => {
+                state.fabricCanvas.setBackgroundImage(img, state.fabricCanvas.renderAll.bind(state.fabricCanvas));
+            });
+
+        } catch (error) {
+            console.error(error);
+            showToast('Error al cargar PDF', true);
+        }
+    }
+
+    // Herramientas del Toolbar
+    const toolBtns = document.querySelectorAll('.tool-btn');
+    toolBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            toolBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const tool = btn.id;
+            state.fabricCanvas.isDrawingMode = false;
+            
+            if (tool === 'tool-move') {
+                state.fabricCanvas.selection = true;
+                state.fabricCanvas.forEachObject(o => o.selectable = o.evented = true);
+            } else if (tool === 'tool-text') {
+                const text = new fabric.IText('Escribe aquí...', {
+                    left: 100,
+                    top: 100,
+                    fontFamily: 'Outfit',
+                    fontSize: 20,
+                    fill: '#000000'
+                });
+                state.fabricCanvas.add(text);
+                state.fabricCanvas.setActiveObject(text);
+            } else if (tool === 'tool-draw') {
+                state.fabricCanvas.isDrawingMode = true;
+                state.fabricCanvas.freeDrawingBrush.width = 3;
+                state.fabricCanvas.freeDrawingBrush.color = '#000000';
+            } else if (tool === 'tool-rect') {
+                const rect = new fabric.Rect({
+                    left: 150,
+                    top: 150,
+                    fill: 'transparent',
+                    stroke: '#000000',
+                    strokeWidth: 2,
+                    width: 100,
+                    height: 100
+                });
+                state.fabricCanvas.add(rect);
+            } else if (tool === 'tool-erase') {
+                const active = state.fabricCanvas.getActiveObject();
+                if (active) state.fabricCanvas.remove(active);
+            } else if (tool === 'tool-undo') {
+                const objects = state.fabricCanvas.getObjects();
+                if (objects.length > 0) {
+                    state.fabricCanvas.remove(objects[objects.length - 1]);
+                }
+            }
+        });
+    });
+
+    // Guardar Edición
+    btnSaveEdit.addEventListener('click', async () => {
+        try {
+            btnSaveEdit.disabled = true;
+            btnSaveEdit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Guardando...';
+
+            // Exportar canvas de fabric como imagen de alta resolución
+            const dataURL = state.fabricCanvas.toDataURL({
+                format: 'png',
+                quality: 1
+            });
+
+            // Usar pdf-lib para incrustar esta imagen en una nueva página o sobre la original
+            const { PDFDocument } = window.PDFLib;
+            const pdfDoc = await PDFDocument.load(state.originalPdfBytes);
+            const pages = pdfDoc.getPages();
+            const firstPage = pages[0];
+
+            const editImg = await pdfDoc.embedPng(dataURL);
+            const { width, height } = firstPage.getSize();
+            
+            firstPage.drawImage(editImg, {
+                x: 0,
+                y: 0,
+                width: width,
+                height: height
+            });
+
+            const pdfBytes = await pdfDoc.save();
+            const blob = new Blob([pdfBytes], { type: "application/pdf" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "pdf_editado.pdf";
+            a.click();
+            
+            showToast('PDF editado guardado con éxito');
+            
+            // Reset UI
+            toolbarEdit.classList.add('hidden');
+            wrapperEdit.classList.add('hidden');
+            dropzoneEdit.classList.remove('hidden');
+
+        } catch (error) {
+            console.error(error);
+            showToast('Error al guardar edición', true);
+        } finally {
+            btnSaveEdit.disabled = false;
+            btnSaveEdit.innerHTML = '<i class="fa-solid fa-check"></i> LISTO';
         }
     });
 

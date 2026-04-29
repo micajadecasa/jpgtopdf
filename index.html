@@ -14,6 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     
     <!-- Iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -39,6 +40,9 @@
             </button>
             <button class="tab-btn" data-tab="pdf2jpg">
                 <i class="fa-solid fa-file-image"></i> PDF a JPG
+            </button>
+            <button class="tab-btn" data-tab="editpdf">
+                <i class="fa-solid fa-pen-nib"></i> Editor PDF
             </button>
         </div>
 
@@ -106,6 +110,56 @@
                 <button class="btn-primary" id="btn-convert-pdf2jpg" disabled>
                     <i class="fa-solid fa-image"></i> Convertir a JPG
                 </button>
+            </div>
+        <!-- Sección 4: Editor de PDF (Interactivo) -->
+        <section id="editpdf" class="tab-content">
+            <div class="card glass editor-container">
+                <div class="editor-header">
+                    <h2>Editor de PDF</h2>
+                    <p>Añade texto, dibujos y formas sobre tu documento.</p>
+                </div>
+                
+                <div class="drop-zone" id="dropzone-edit">
+                    <i class="fa-solid fa-file-signature"></i>
+                    <p>Sube el PDF que quieres editar</p>
+                    <button class="btn-outline" onclick="document.getElementById('file-edit').click()">Seleccionar PDF</button>
+                    <input type="file" id="file-edit" accept="application/pdf" hidden>
+                </div>
+
+                <!-- Barra de Herramientas Estilo Premium -->
+                <div id="pdf-toolbar" class="pdf-toolbar hidden">
+                    <div class="tool-group">
+                        <button class="tool-btn active" id="tool-move" title="Mover">
+                            <i class="fa-solid fa-arrow-pointer"></i> <span>Mover</span>
+                        </button>
+                        <button class="tool-btn" id="tool-text" title="Agregar Texto">
+                            <i class="fa-solid fa-t"></i> <span>Texto</span>
+                        </button>
+                        <button class="tool-btn" id="tool-draw" title="Lápiz">
+                            <i class="fa-solid fa-pencil"></i> <span>Lápiz</span>
+                        </button>
+                        <button class="tool-btn" id="tool-rect" title="Cuadro">
+                            <i class="fa-regular fa-square"></i> <span>Cuadro</span>
+                        </button>
+            <button class="tool-btn" id="tool-erase" title="Borrador">
+                            <i class="fa-solid fa-eraser"></i> <span>Borrador</span>
+                        </button>
+                        <button class="tool-btn" id="tool-undo" title="Deshacer">
+                            <i class="fa-solid fa-rotate-left"></i> <span>Deshacer</span>
+                        </button>
+                    </div>
+                    <div class="tool-divider"></div>
+                    <div class="tool-actions">
+                        <button class="btn-done" id="btn-save-edit">
+                            <i class="fa-solid fa-check"></i> LISTO
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor del Canvas -->
+                <div id="canvas-wrapper" class="canvas-wrapper hidden">
+                    <canvas id="pdf-canvas"></canvas>
+                </div>
             </div>
         </section>
 
