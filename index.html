@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Master - Herramientas Premium</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Bibliotecas de PDF -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Efectos de fondo premium -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <main class="container">
+        <header>
+            <h1>PDF <span class="highlight">Master</span></h1>
+            <p>Herramientas profesionales para tus imágenes y documentos</p>
+        </header>
+
+        <!-- Pestañas de Navegación -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="img2pdf">
+                <i class="fa-solid fa-images"></i> Imágenes a PDF
+            </button>
+            <button class="tab-btn" data-tab="mergepdf">
+                <i class="fa-solid fa-layer-group"></i> Unir PDFs
+            </button>
+            <button class="tab-btn" data-tab="pdf2jpg">
+                <i class="fa-solid fa-file-image"></i> PDF a JPG
+            </button>
+        </div>
+
+        <!-- Sección 1: Imágenes a PDF -->
+        <section id="img2pdf" class="tab-content active">
+            <div class="card glass">
+                <h2>Convertir Imágenes a PDF</h2>
+                <p>Sube imágenes de cualquier formato (JPG, PNG, WEBP, GIF, BMP, etc.) para combinarlas en un único PDF.</p>
+                
+                <div class="drop-zone" id="dropzone-img">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <p>Arrastra y suelta tus imágenes aquí</p>
+                    <span>o</span>
+                    <button class="btn-outline" onclick="document.getElementById('file-img').click()">Examinar Archivos</button>
+                    <!-- Aceptamos cualquier imagen ya que las convertiremos internamente -->
+                    <input type="file" id="file-img" multiple accept="image/*" hidden>
+                </div>
+
+                <div class="file-list" id="file-list-img"></div>
+
+                <button class="btn-primary" id="btn-convert-img" disabled>
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Convertir a PDF
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección 2: Unir PDFs -->
+        <section id="mergepdf" class="tab-content">
+            <div class="card glass">
+                <h2>Unir Archivos PDF</h2>
+                <p>Combina dos o más archivos PDF en uno solo de forma rápida y segura.</p>
+                
+                <div class="drop-zone" id="dropzone-pdf">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <p>Arrastra y suelta tus PDFs aquí</p>
+                    <span>o</span>
+                    <button class="btn-outline" onclick="document.getElementById('file-pdf').click()">Examinar Archivos</button>
+                    <input type="file" id="file-pdf" multiple accept="application/pdf" hidden>
+                </div>
+
+                <div class="file-list" id="file-list-pdf"></div>
+
+                <button class="btn-primary" id="btn-merge-pdf" disabled>
+                    <i class="fa-solid fa-link"></i> Unir PDFs
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección 3: PDF a JPG -->
+        <section id="pdf2jpg" class="tab-content">
+            <div class="card glass">
+                <h2>Convertir PDF a JPG</h2>
+                <p>Extrae cada página de tu archivo PDF como una imagen JPG de alta calidad.</p>
+                
+                <div class="drop-zone" id="dropzone-pdf2jpg">
+                    <i class="fa-solid fa-file-export"></i>
+                    <p>Arrastra y suelta tu PDF aquí</p>
+                    <span>o</span>
+                    <button class="btn-outline" onclick="document.getElementById('file-pdf2jpg').click()">Examinar Archivo</button>
+                    <input type="file" id="file-pdf2jpg" accept="application/pdf" hidden>
+                </div>
+
+                <div class="file-list" id="file-list-pdf2jpg"></div>
+
+                <button class="btn-primary" id="btn-convert-pdf2jpg" disabled>
+                    <i class="fa-solid fa-image"></i> Convertir a JPG
+                </button>
+            </div>
+        </section>
+
+        <!-- Notificaciones Toast -->
+        <div id="toast" class="toast hidden">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="toast-msg">¡Operación exitosa!</span>
+        </div>
+    </main>
+    
+    <script src="script.js"></script>
+</body>
+</html>
