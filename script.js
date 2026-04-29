@@ -418,46 +418,56 @@ document.addEventListener('DOMContentLoaded', () => {
             showToast('Cargando documento...');
             state.originalPdfBytes = await file.arrayBuffer();
             
-            // Ocultar zona de carga, mostrar editor
+            const loadingTask = pdfjsLib.getDocument({ data: state.originalPdfBytes });
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            
+            const viewport = page.getViewport({ scale: 1.5 });
+            
+            // Usar un canvas oculto para renderizar el PDF original
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.height = viewport.height;
+            tempCanvas.width = viewport.width;
+
+            await page.render({ canvasContext: tempCtx, viewport: viewport }).promise;
+
+            // Mostrar el editor UI
             dropzoneEdit.classList.add('hidden');
             toolbarEdit.classList.remove('hidden');
             wrapperEdit.classList.remove('hidden');
 
-            const loadingTask = pdfjsLib.getDocument({ data: state.originalPdfBytes });
-            const pdf = await loadingTask.promise;
-            const page = await pdf.getPage(1); // Solo página 1 por ahora
-            
-            const viewport = page.getViewport({ scale: 1.5 });
-            const canvas = document.getElementById('pdf-canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-            // Inicializar Fabric.js sobre el canvas del PDF
-            if (state.fabricCanvas) state.fabricCanvas.dispose();
+            // Inicializar Fabric.js con las dimensiones exactas
+            if (state.fabricCanvas) {
+                state.fabricCanvas.dispose();
+            }
             
             state.fabricCanvas = new fabric.Canvas('pdf-canvas', {
+                width: viewport.width,
+                height: viewport.height,
                 isDrawingMode: false
             });
 
-            // Usar el canvas del PDF como fondo de Fabric
-            const bgData = canvas.toDataURL('image/png');
+            // Poner el PDF renderizado como fondo
+            const bgData = tempCanvas.toDataURL('image/png');
             fabric.Image.fromURL(bgData, (img) => {
                 state.fabricCanvas.setBackgroundImage(img, state.fabricCanvas.renderAll.bind(state.fabricCanvas));
             });
 
         } catch (error) {
-            console.error(error);
+            console.error("Error al cargar PDF en editor:", error);
             showToast('Error al cargar PDF', true);
         }
     }
 
-    // Herramientas del Toolbar
+    // Herramientas del Toolbar Mejoradas
     const toolBtns = document.querySelectorAll('.tool-btn');
+    const imgUpload = document.getElementById('img-upload');
+
     toolBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            if (!state.fabricCanvas) return;
+            
             toolBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             
@@ -468,44 +478,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.fabricCanvas.selection = true;
                 state.fabricCanvas.forEachObject(o => o.selectable = o.evented = true);
             } else if (tool === 'tool-text') {
-                const text = new fabric.IText('Escribe aquí...', {
+                const text = new fabric.IText('Escribe algo...', {
                     left: 100,
                     top: 100,
                     fontFamily: 'Outfit',
-                    fontSize: 20,
+                    fontSize: 24,
                     fill: '#000000'
                 });
                 state.fabricCanvas.add(text);
                 state.fabricCanvas.setActiveObject(text);
             } else if (tool === 'tool-draw') {
                 state.fabricCanvas.isDrawingMode = true;
+                state.fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(state.fabricCanvas);
                 state.fabricCanvas.freeDrawingBrush.width = 3;
                 state.fabricCanvas.freeDrawingBrush.color = '#000000';
+            } else if (tool === 'tool-highlighter') {
+                state.fabricCanvas.isDrawingMode = true;
+                state.fabricCanvas.freeDrawingBrush = new fabric.PencilBrush(state.fabricCanvas);
+                state.fabricCanvas.freeDrawingBrush.width = 20;
+                state.fabricCanvas.freeDrawingBrush.color = 'rgba(255, 255, 0, 0.4)'; // Amarillo transparente
             } else if (tool === 'tool-rect') {
                 const rect = new fabric.Rect({
-                    left: 150,
-                    top: 150,
-                    fill: 'transparent',
-                    stroke: '#000000',
-                    strokeWidth: 2,
-                    width: 100,
-                    height: 100
+                    left: 150, top: 150, width: 100, height: 100,
+                    fill: 'transparent', stroke: '#000000', strokeWidth: 2
                 });
                 state.fabricCanvas.add(rect);
+            } else if (tool === 'tool-image') {
+                imgUpload.click();
+            } else if (tool === 'tool-x') {
+                const xText = new fabric.Text('✖', {
+                    left: 200, top: 200, fontSize: 40, fill: '#ff0000', fontWeight: 'bold'
+                });
+                state.fabricCanvas.add(xText);
             } else if (tool === 'tool-erase') {
                 const active = state.fabricCanvas.getActiveObject();
                 if (active) state.fabricCanvas.remove(active);
             } else if (tool === 'tool-undo') {
-                const objects = state.fabricCanvas.getObjects();
-                if (objects.length > 0) {
-                    state.fabricCanvas.remove(objects[objects.length - 1]);
-                }
+                const objs = state.fabricCanvas.getObjects();
+                if (objs.length > 0) state.fabricCanvas.remove(objs[objs.length - 1]);
             }
         });
     });
 
+    // Manejador de subida de imagen para el editor
+    imgUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (f) => {
+            const data = f.target.result;
+            fabric.Image.fromURL(data, (img) => {
+                img.scaleToWidth(200);
+                state.fabricCanvas.add(img);
+                state.fabricCanvas.centerObject(img);
+                state.fabricCanvas.setActiveObject(img);
+            });
+        };
+        reader.readAsDataURL(file);
+    });
+
     // Guardar Edición
     btnSaveEdit.addEventListener('click', async () => {
+        if (!state.fabricCanvas) return;
+        
         try {
             btnSaveEdit.disabled = true;
             btnSaveEdit.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Guardando...';
@@ -516,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 quality: 1
             });
 
-            // Usar pdf-lib para incrustar esta imagen en una nueva página o sobre la original
+            // Usar pdf-lib para incrustar esta imagen sobre la original
             const { PDFDocument } = window.PDFLib;
             const pdfDoc = await PDFDocument.load(state.originalPdfBytes);
             const pages = pdfDoc.getPages();
@@ -538,7 +574,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const a = document.createElement('a');
             a.href = url;
             a.download = "pdf_editado.pdf";
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             
             showToast('PDF editado guardado con éxito');
             
@@ -548,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dropzoneEdit.classList.remove('hidden');
 
         } catch (error) {
-            console.error(error);
+            console.error("Error al guardar edición:", error);
             showToast('Error al guardar edición', true);
         } finally {
             btnSaveEdit.disabled = false;
